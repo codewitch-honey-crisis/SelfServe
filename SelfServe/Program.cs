@@ -30,7 +30,7 @@ namespace SelfServeDemo
 							ServiceBase[] ServicesToRun;
 							ServicesToRun = new ServiceBase[]
 							{
-					new Service()
+								svctmp
 							};
 							ServiceBase.Run(ServicesToRun);
 						}
@@ -55,16 +55,16 @@ namespace SelfServeDemo
 							_PrintStatus(svctmp.ServiceName);
 							break;
 						case "/stop":
-							_StopService(svctmp.ServiceName, _IsInstalled(svctmp.ServiceName));
+							_StopService(svctmp.ServiceName, ServiceInstaller.IsInstalled(svctmp.ServiceName));
 							break;
 						case "/start":
-							_StartService(svctmp, _IsInstalled(svctmp.ServiceName));
+							_StartService(svctmp, ServiceInstaller.IsInstalled(svctmp.ServiceName));
 							break;
 						case "/install":
-							_InstallService(svctmp);
+							_InstallService(svctmp.ServiceName);
 							break;
 						case "/uninstall":
-							_UninstallService(svctmp);
+							_UninstallService(svctmp.ServiceName);
 							break;
 					}
 				}
@@ -76,39 +76,37 @@ namespace SelfServeDemo
 			}
 			return 0;
 		}
-		static void _InstallService(Service svc)
+		static void _InstallService(string name)
 		{
 			var createdNew = true;
-			using (var mutex = new Mutex(true, svc.ServiceName, out createdNew))
+			using (var mutex = new Mutex(true, name, out createdNew))
 			{
 				if (createdNew)
 				{
 					mutex.WaitOne();
-					ServiceInstaller.Install(svc.ServiceName, svc.ServiceName, _FilePath);
-					Console.Error.WriteLine("Service " + svc.ServiceName + " installed");
-
+					ServiceInstaller.Install(name, name, _FilePath);
+					Console.Error.WriteLine("Service " + name+ " installed");
 				}
 				else
 				{
-					throw new ApplicationException("Service " + svc.ServiceName + " is currently running.");
+					throw new ApplicationException("Service " + name+ " is currently running.");
 				}
 			}
-
 		}
-		static void _UninstallService(Service svc)
+		static void _UninstallService(string name)
 		{
 			var createdNew = true;
-			using (var mutex = new Mutex(true, svc.ServiceName, out createdNew))
+			using (var mutex = new Mutex(true, name, out createdNew))
 			{
 				if (createdNew)
 				{
 					mutex.WaitOne();
-					ServiceInstaller.Uninstall(svc.ServiceName);
-					Console.Error.WriteLine("Service " + svc.ServiceName + " uninstalled");
+					ServiceInstaller.Uninstall(name);
+					Console.Error.WriteLine("Service " + name+ " uninstalled");
 				}
 				else
 				{
-					throw new ApplicationException("Service " + svc.ServiceName + " is currently running.");
+					throw new ApplicationException("Service " + name+ " is currently running.");
 				}
 			}
 		}
@@ -144,21 +142,7 @@ namespace SelfServeDemo
 
 
 		}
-		static bool _IsInstalled(string name)
-		{
-			var result = false;
-			var svcs = ServiceController.GetServices();
-			for (var i = 0; i < svcs.Length; i++)
-			{
-				var svc = svcs[i];
-				if (0 == string.Compare(svc.ServiceName, name, System.StringComparison.InvariantCulture))
-				{
-					result = true;
-					break;
-				}
-			}
-			return result;
-		}
+
 		static void _StopService(string name, bool isInstalled)
 		{
 			if (isInstalled)
@@ -204,7 +188,7 @@ namespace SelfServeDemo
 		}
 		static void _PrintStatus(string name)
 		{
-			var isInstalled = _IsInstalled(name);
+			var isInstalled = ServiceInstaller.IsInstalled(name);
 			var isRunning = true;
 			var createdNew = true;
 			using(var mutex=new Mutex(true,name,out createdNew))
@@ -236,8 +220,8 @@ namespace SelfServeDemo
 			t.WriteLine();
 			t.WriteLine("   /start      Starts the service, if it's not already running. When not installed, this runs in console mode.");
 			t.WriteLine("   /stop       Stops the service, if it's running. This will stop the installed service, or kill the console mode service process.");
-			t.WriteLine("   /install    Installs the service, if not installed so that it may run in service mode.");
-			t.WriteLine("   /uninstall  Uninstalls the service, if installed, so that it will not run in service most.");
+			t.WriteLine("   /install    Installs the service, if not installed so that it may run in Windows service mode.");
+			t.WriteLine("   /uninstall  Uninstalls the service, if installed, so that it will not run in Windows service mode.");
 			t.WriteLine("   /status     Reports if the service is installed and/or running.");
 			t.WriteLine();
 
@@ -329,7 +313,7 @@ namespace SelfServeDemo
 				}
 			}
 
-			public static bool ServiceIsInstalled(string serviceName)
+			public static bool IsInstalled(string serviceName)
 			{
 				IntPtr scm = OpenSCManager(ScmAccessRights.Connect);
 
