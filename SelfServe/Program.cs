@@ -190,7 +190,7 @@ namespace SelfServeDemo
 		{
 			var isInstalled = ServiceInstaller.IsInstalled(name);
 			var isRunning = true;
-			var createdNew = true;
+			bool createdNew;
 			using(var mutex=new Mutex(true,name,out createdNew))
 			{
 				if(createdNew)
@@ -236,7 +236,7 @@ namespace SelfServeDemo
 			private class SERVICE_STATUS
 			{
 				public int dwServiceType = 0;
-				public ServiceState dwCurrentState = 0;
+				public _ServiceState dwCurrentState = 0;
 				public int dwControlsAccepted = 0;
 				public int dwWin32ExitCode = 0;
 				public int dwServiceSpecificExitCode = 0;
@@ -246,17 +246,17 @@ namespace SelfServeDemo
 
 			#region OpenSCManager
 			[DllImport("advapi32.dll", EntryPoint = "OpenSCManagerW", ExactSpelling = true, CharSet = CharSet.Unicode, SetLastError = true)]
-			static extern IntPtr OpenSCManager(string machineName, string databaseName, ScmAccessRights dwDesiredAccess);
+			static extern IntPtr OpenSCManager(string machineName, string databaseName, _ScmAccessRights dwDesiredAccess);
 			#endregion
 
 			#region OpenService
 			[DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-			static extern IntPtr OpenService(IntPtr hSCManager, string lpServiceName, ServiceAccessRights dwDesiredAccess);
+			static extern IntPtr OpenService(IntPtr hSCManager, string lpServiceName, _ServiceAccessRights dwDesiredAccess);
 			#endregion
 
 			#region CreateService
 			[DllImport("advapi32.dll", SetLastError = true, CharSet = CharSet.Auto)]
-			private static extern IntPtr CreateService(IntPtr hSCManager, string lpServiceName, string lpDisplayName, ServiceAccessRights dwDesiredAccess, int dwServiceType, ServiceBootFlag dwStartType, ServiceError dwErrorControl, string lpBinaryPathName, string lpLoadOrderGroup, IntPtr lpdwTagId, string lpDependencies, string lp, string lpPassword);
+			private static extern IntPtr CreateService(IntPtr hSCManager, string lpServiceName, string lpDisplayName, _ServiceAccessRights dwDesiredAccess, int dwServiceType, _ServiceBootFlag dwStartType, _ServiceError dwErrorControl, string lpBinaryPathName, string lpLoadOrderGroup, IntPtr lpdwTagId, string lpDependencies, string lp, string lpPassword);
 			#endregion
 
 			#region CloseServiceHandle
@@ -278,7 +278,7 @@ namespace SelfServeDemo
 
 			#region ControlService
 			[DllImport("advapi32.dll")]
-			private static extern int ControlService(IntPtr hService, ServiceControl dwControl, SERVICE_STATUS lpServiceStatus);
+			private static extern int ControlService(IntPtr hService, _ServiceControl dwControl, SERVICE_STATUS lpServiceStatus);
 			#endregion
 
 			#region StartService
@@ -288,17 +288,17 @@ namespace SelfServeDemo
 
 			public static void Uninstall(string serviceName)
 			{
-				IntPtr scm = OpenSCManager(ScmAccessRights.AllAccess);
+				IntPtr scm = _OpenSCManager(_ScmAccessRights.AllAccess);
 
 				try
 				{
-					IntPtr service = OpenService(scm, serviceName, ServiceAccessRights.AllAccess);
+					IntPtr service = OpenService(scm, serviceName, _ServiceAccessRights.AllAccess);
 					if (service == IntPtr.Zero)
 						throw new ApplicationException("Service not installed.");
 
 					try
 					{
-						StopService(service);
+						_StopService(service);
 						if (!DeleteService(service))
 							throw new ApplicationException("Could not delete service " + Marshal.GetLastWin32Error());
 					}
@@ -315,11 +315,11 @@ namespace SelfServeDemo
 
 			public static bool IsInstalled(string serviceName)
 			{
-				IntPtr scm = OpenSCManager(ScmAccessRights.Connect);
+				IntPtr scm = _OpenSCManager(_ScmAccessRights.Connect);
 
 				try
 				{
-					IntPtr service = OpenService(scm, serviceName, ServiceAccessRights.QueryStatus);
+					IntPtr service = OpenService(scm, serviceName, _ServiceAccessRights.QueryStatus);
 
 					if (service == IntPtr.Zero)
 						return false;
@@ -335,14 +335,14 @@ namespace SelfServeDemo
 
 			public static void Install(string serviceName, string displayName, string fileName)
 			{
-				IntPtr scm = OpenSCManager(ScmAccessRights.AllAccess);
+				IntPtr scm = _OpenSCManager(_ScmAccessRights.AllAccess);
 
 				try
 				{
-					IntPtr service = OpenService(scm, serviceName, ServiceAccessRights.AllAccess);
+					IntPtr service = OpenService(scm, serviceName, _ServiceAccessRights.AllAccess);
 
 					if (service == IntPtr.Zero)
-						service = CreateService(scm, serviceName, displayName, ServiceAccessRights.AllAccess, SERVICE_WIN32_OWN_PROCESS, ServiceBootFlag.AutoStart, ServiceError.Normal, fileName, null, IntPtr.Zero, null, null, null);
+						service = CreateService(scm, serviceName, displayName, _ServiceAccessRights.AllAccess, SERVICE_WIN32_OWN_PROCESS, _ServiceBootFlag.AutoStart, _ServiceError.Normal, fileName, null, IntPtr.Zero, null, null, null);
 
 					if (service == IntPtr.Zero)
 						throw new ApplicationException("Failed to install service.");
@@ -364,17 +364,17 @@ namespace SelfServeDemo
 
 			public static void StartService(string serviceName)
 			{
-				IntPtr scm = OpenSCManager(ScmAccessRights.Connect);
+				IntPtr scm = _OpenSCManager(_ScmAccessRights.Connect);
 
 				try
 				{
-					IntPtr service = OpenService(scm, serviceName, ServiceAccessRights.QueryStatus | ServiceAccessRights.Start);
+					IntPtr service = OpenService(scm, serviceName, _ServiceAccessRights.QueryStatus | _ServiceAccessRights.Start);
 					if (service == IntPtr.Zero)
 						throw new ApplicationException("Could not open service.");
 
 					try
 					{
-						StartService(service);
+						_StartService(service);
 					}
 					finally
 					{
@@ -389,17 +389,17 @@ namespace SelfServeDemo
 
 			public static void StopService(string serviceName)
 			{
-				IntPtr scm = OpenSCManager(ScmAccessRights.Connect);
+				IntPtr scm = _OpenSCManager(_ScmAccessRights.Connect);
 
 				try
 				{
-					IntPtr service = OpenService(scm, serviceName, ServiceAccessRights.QueryStatus | ServiceAccessRights.Stop);
+					IntPtr service = OpenService(scm, serviceName, _ServiceAccessRights.QueryStatus | _ServiceAccessRights.Stop);
 					if (service == IntPtr.Zero)
 						throw new ApplicationException("Could not open service.");
 
 					try
 					{
-						StopService(service);
+						_StopService(service);
 					}
 					finally
 					{
@@ -412,50 +412,25 @@ namespace SelfServeDemo
 				}
 			}
 
-			private static void StartService(IntPtr service)
+			static void _StartService(IntPtr service)
 			{
 				SERVICE_STATUS status = new SERVICE_STATUS();
 				StartService(service, 0, 0);
-				var changedStatus = WaitForServiceStatus(service, ServiceState.StartPending, ServiceState.Running);
+				var changedStatus = _WaitForServiceStatus(service, _ServiceState.StartPending, _ServiceState.Running);
 				if (!changedStatus)
 					throw new ApplicationException("Unable to start service");
 			}
 
-			private static void StopService(IntPtr service)
+			static void _StopService(IntPtr service)
 			{
 				SERVICE_STATUS status = new SERVICE_STATUS();
-				ControlService(service, ServiceControl.Stop, status);
-				var changedStatus = WaitForServiceStatus(service, ServiceState.StopPending, ServiceState.Stopped);
+				ControlService(service, _ServiceControl.Stop, status);
+				var changedStatus = _WaitForServiceStatus(service, _ServiceState.StopPending, _ServiceState.Stopped);
 				if (!changedStatus)
 					throw new ApplicationException("Unable to stop service");
 			}
 
-			public static ServiceState GetServiceStatus(string serviceName)
-			{
-				IntPtr scm = OpenSCManager(ScmAccessRights.Connect);
-
-				try
-				{
-					IntPtr service = OpenService(scm, serviceName, ServiceAccessRights.QueryStatus);
-					if (service == IntPtr.Zero)
-						return ServiceState.NotFound;
-
-					try
-					{
-						return GetServiceStatus(service);
-					}
-					finally
-					{
-						CloseServiceHandle(service);
-					}
-				}
-				finally
-				{
-					CloseServiceHandle(scm);
-				}
-			}
-
-			private static ServiceState GetServiceStatus(IntPtr service)
+			static _ServiceState _GetServiceStatus(IntPtr service)
 			{
 				SERVICE_STATUS status = new SERVICE_STATUS();
 
@@ -465,7 +440,7 @@ namespace SelfServeDemo
 				return status.dwCurrentState;
 			}
 
-			private static bool WaitForServiceStatus(IntPtr service, ServiceState waitStatus, ServiceState desiredStatus)
+			static bool _WaitForServiceStatus(IntPtr service, _ServiceState waitStatus, _ServiceState desiredStatus)
 			{
 				SERVICE_STATUS status = new SERVICE_STATUS();
 
@@ -510,7 +485,7 @@ namespace SelfServeDemo
 				return (status.dwCurrentState == desiredStatus);
 			}
 
-			private static IntPtr OpenSCManager(ScmAccessRights rights)
+			static IntPtr _OpenSCManager(_ScmAccessRights rights)
 			{
 				IntPtr scm = OpenSCManager(null, null, rights);
 				if (scm == IntPtr.Zero)
@@ -521,7 +496,7 @@ namespace SelfServeDemo
 		}
 
 
-		public enum ServiceState
+		private enum _ServiceState
 		{
 			Unknown = -1, // The state cannot be (has not been) retrieved.
 			NotFound = 0, // The service is not known on the host server.
@@ -535,7 +510,7 @@ namespace SelfServeDemo
 		}
 
 		[Flags]
-		public enum ScmAccessRights
+		private enum _ScmAccessRights
 		{
 			Connect = 0x0001,
 			CreateService = 0x0002,
@@ -549,7 +524,7 @@ namespace SelfServeDemo
 		}
 
 		[Flags]
-		public enum ServiceAccessRights
+		private enum _ServiceAccessRights
 		{
 			QueryConfig = 0x1,
 			ChangeConfig = 0x2,
@@ -567,7 +542,7 @@ namespace SelfServeDemo
 						 Interrogate | UserDefinedControl)
 		}
 
-		public enum ServiceBootFlag
+		private enum _ServiceBootFlag
 		{
 			Start = 0x00000000,
 			SystemStart = 0x00000001,
@@ -576,7 +551,7 @@ namespace SelfServeDemo
 			Disabled = 0x00000004
 		}
 
-		public enum ServiceControl
+		private enum _ServiceControl
 		{
 			Stop = 0x00000001,
 			Pause = 0x00000002,
@@ -590,7 +565,7 @@ namespace SelfServeDemo
 			NetBindDisable = 0x0000000A
 		}
 
-		public enum ServiceError
+		private enum _ServiceError
 		{
 			Ignore = 0x00000000,
 			Normal = 0x00000001,
